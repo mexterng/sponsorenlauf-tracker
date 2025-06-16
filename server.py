@@ -21,19 +21,40 @@ def add_scan(code: str, scanner_id: str):
                 "INSERT INTO scans (code, scanner_id) VALUES (%s, %s)",
                 (code, scanner_id)
             )
+            
+            cur.execute(
+                "SELECT firstname, lastname, class FROM students WHERE code = %s",
+                (code,)
+            )
+            result = cur.fetchone()
         conn.commit()
     notify_clients()
+    
+    if result:
+        firstname, lastname, class_ = result
+        return {
+            "code": code,
+            "firstname": firstname,
+            "lastname": lastname,
+            "class": class_,
+            "scanner_id": scanner_id,
+            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
+        }
 
-def get_last_scans():
+def get_last_scans(number: int = 0):
     with get_connection() as conn:
         with conn.cursor() as cur:
-            cur.execute("""
+            base_query = """
                 SELECT s.code, st.firstname, st.lastname, st.class, s.scanner_id, s.timestamp
                 FROM scans s
                 LEFT JOIN students st ON s.code = st.code
                 ORDER BY s.id DESC
-                LIMIT 5
-            """)
+            """
+            if number > 0:
+                cur.execute(base_query + " LIMIT %s", (number,))
+            else:
+                cur.execute(base_query)
+
             return cur.fetchall()
 
 def get_top_scans():
@@ -51,15 +72,24 @@ def get_top_scans():
 
 @app.route("/scan-client", methods=["POST"])
 def scan_client():
+    start_time = time.time()
     code = request.form.get("code", "").strip()
     scanner_id = request.form.get("scanner_id", "").strip()
     data_dict = {"code": code, "scanner_id": scanner_id}
     if code and scanner_id:
-        add_scan(code, scanner_id)
-        data_dict["status"] = "erfasst"
-        return data_dict, 200
-    data_dict["status"] = "ungültig"
-    return data_dict, 400
+        response_dict = add_scan(code, scanner_id)
+        if response_dict:
+            data_dict.update(response_dict)
+            data_dict["status"] = "OK"
+            status_code = 200
+        else:
+            data_dict["status"] = "Not Found"
+            status_code = 404
+    else:
+        data_dict["status"] = "Bad Request"
+        status_code = 400
+    print(f"scan time: {time.time() - start_time}")
+    return data_dict, status_code
 
 @app.route("/scan", methods=["GET"])
 def scan_form():
@@ -90,12 +120,17 @@ def notify_clients():
             clients.remove(client)
 
 @app.route("/last")
-def last():
-    scans = get_last_scans()
+def last_scans():
+    scans = get_last_scans(5)
+    return render_template("last.html", scans=scans)
+
+@app.route("/all")
+def all_scans():
+    scans = get_last_scans(0)
     return render_template("last.html", scans=scans)
 
 @app.route("/top")
-def top():
+def top_students():
     scans = get_top_scans()
     return render_template("top.html", scans=scans)
 
