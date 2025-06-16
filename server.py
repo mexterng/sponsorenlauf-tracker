@@ -15,7 +15,6 @@ def get_connection():
     return psycopg2.connect(**DB_CONFIG)
 
 def add_scan(code: str, scanner_id: str):
-    start_addScan = time.time()
     with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -23,10 +22,7 @@ def add_scan(code: str, scanner_id: str):
                 (code, scanner_id)
             )
         conn.commit()
-    print(f"\tintern: {time.time() - start_addScan}")
-    start_addScan = time.time()
     notify_clients()
-    print(f"\tnotify: {time.time() - start_addScan}")
 
 def get_last_scans():
     with get_connection() as conn:
@@ -55,13 +51,11 @@ def get_top_scans():
 
 @app.route("/scan-client", methods=["POST"])
 def scan_client():
-    start_scan = time.time()
     code = request.form.get("code", "").strip()
     scanner_id = request.form.get("scanner_id", "").strip()
     data_dict = {"code": code, "scanner_id": scanner_id}
     if code and scanner_id:
         add_scan(code, scanner_id)
-        print(f"\tscan: {time.time() - start_scan}")
         data_dict["status"] = "erfasst"
         return data_dict, 200
     data_dict["status"] = "ungültig"
