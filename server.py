@@ -54,15 +54,22 @@ def get_top_scans():
             return cur.fetchall()
 
 @app.route("/scan-client", methods=["POST"])
-def scan():
+def scan_client():
     start_scan = time.time()
     code = request.form.get("code", "").strip()
     scanner_id = request.form.get("scanner_id", "").strip()
+    data_dict = {"code": code, "scanner_id": scanner_id}
     if code and scanner_id:
         add_scan(code, scanner_id)
         print(f"\tscan: {time.time() - start_scan}")
-        return "erfasst", 200
-    return "ungültig", 400
+        data_dict["status"] = "erfasst"
+        return data_dict, 200
+    data_dict["status"] = "ungültig"
+    return data_dict, 400
+
+@app.route("/scan", methods=["GET"])
+def scan_form():
+    return render_template("scan.html")
 
 @app.route("/events")
 def events():

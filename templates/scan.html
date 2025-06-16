@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Scan</title>
+    <style>
+        #message {
+            padding: 5px;
+            margin-top: 10px;
+            font-weight: bold;
+            color: green;
+        }
+    </style>
+    <script>
+        window.onload = function () {
+            const scannerInput = document.getElementById("scanner_id");
+            const codeInput = document.getElementById("code");
+            const form = document.getElementById("scanForm");
+            const message = document.getElementById("message");
+
+            // Lade gespeicherten Scannername
+            const savedScanner = localStorage.getItem("scanner_id");
+            if (savedScanner) scannerInput.value = savedScanner;
+
+            codeInput.focus();
+
+            form.addEventListener("submit", function (e) {
+                e.preventDefault();
+
+                const code = codeInput.value.trim();
+                const scanner = scannerInput.value.trim();
+                if (!code || !scanner) return;
+
+                localStorage.setItem("scanner_id", scanner);
+
+                fetch("/scan-client", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                    body: `code=${encodeURIComponent(code)}&scanner_id=${encodeURIComponent(scanner)}`
+                }).then(response => {
+                    if (response.ok) {
+                        message.textContent = "Scan erfasst";
+                        setTimeout(() => message.textContent = "", 3000);
+                        codeInput.value = "";
+                        codeInput.focus();
+                    } else {
+                        alert("Scan fehlgeschlagen");
+                    }
+                }).catch(error => {
+                    alert("Verbindungsfehler");
+                    console.error(error);
+                });
+            });
+        };
+    </script>
+</head>
+<body>
+    <h2>Scan</h2>
+    <form id="scanForm">
+        <label for="scanner_id">Scanner-Name:</label>
+        <input type="text" id="scanner_id" name="scanner_id" required><br><br>
+
+        <label for="code">Code:</label>
+        <input type="text" id="code" name="code" required autofocus><br><br>
+
+        <button type="submit">Senden</button>
+    </form>
+
+    <div id="message"></div>
+</body>
+</html>
