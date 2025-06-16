@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Letzte Scans</title>
+</head>
+<body>
+<h2>Letzte 5 Scans</h2>
+<ul>
+{% for code, firstname, lastname, class_, scanner_id, timestamp in scans %}
+    <li>{{ timestamp }} - {{ firstname or "?" }} {{ lastname or "" }} ({{ class_ or "?" }}) - {{ scanner_id }}</li>
+{% endfor %}
+</ul>
+<script>
+    const evtSource = new EventSource("/events");
+    evtSource.onmessage = function(e) {
+        location.reload();
+    };
+</script>
+</body>
+</html>
