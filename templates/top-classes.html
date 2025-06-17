@@ -5,12 +5,11 @@
   <title>Top Scans</title>
 </head>
 <body>
-<h2>Top 5 meistgescannte Schüler</h2>
+<h2>{{ title }}</h2>
 <table border="1">
-<tr><th>Name</th><th>Klasse</th><th>Anzahl</th></tr>
-{% for code, firstname, lastname, class_, count in scans %}
+<tr><th>Klasse</th><th>Anzahl</th></tr>
+{% for class_, count in data %}
 <tr>
-  <td>{{ firstname or "?" }} {{ lastname or "" }}</td>
   <td>{{ class_ or "?" }}</td>
   <td>{{ count }}</td>
 </tr>

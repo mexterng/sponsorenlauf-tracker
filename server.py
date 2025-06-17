@@ -57,17 +57,38 @@ def get_last_scans(number: int = 0):
 
             return cur.fetchall()
 
-def get_top_scans():
+def get_top_students(number: int = 1):
     with get_connection() as conn:
         with conn.cursor() as cur:
-            cur.execute("""
+            base_query = ("""
                 SELECT s.code, st.firstname, st.lastname, st.class, COUNT(*) AS cnt
                 FROM scans s
                 LEFT JOIN students st ON s.code = st.code
                 GROUP BY s.code, st.firstname, st.lastname, st.class
                 ORDER BY cnt DESC
-                LIMIT 5
             """)
+            if number > 0:
+                cur.execute(base_query + " LIMIT %s", (number,))
+            else:
+                cur.execute(base_query)
+                
+            return cur.fetchall()
+
+def get_top_classes(number: int = 1):
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            base_query = ("""
+                SELECT st.class, COUNT(*) AS cnt
+                FROM scans s
+                LEFT JOIN students st ON s.code = st.code
+                GROUP BY st.class
+                ORDER BY cnt DESC
+            """)
+            if number > 0:
+                cur.execute(base_query + " LIMIT %s", (number,))
+            else:
+                cur.execute(base_query)
+                
             return cur.fetchall()
 
 @app.route("/scan-client", methods=["POST"])
@@ -129,10 +150,17 @@ def all_scans():
     scans = get_last_scans(0)
     return render_template("last.html", title="Alle Scans", scans=scans)
 
-@app.route("/top")
+@app.route("/top-students")
 def top_students():
-    scans = get_top_scans()
-    return render_template("top.html", scans=scans)
+    top_number  = 5
+    students = get_top_students(top_number)
+    return render_template("top-students.html", title=f"Top {top_number} Schüler*innnen", data=students)
+
+@app.route("/top-classes")
+def top_classes():
+    top_number  = 10
+    classes = get_top_classes(top_number)
+    return render_template("top-classes.html", title=f"Top {top_number} Klassen", data=classes)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8080, debug=False)
