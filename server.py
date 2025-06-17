@@ -122,12 +122,12 @@ def notify_clients():
 @app.route("/last")
 def last_scans():
     scans = get_last_scans(5)
-    return render_template("last.html", scans=scans)
+    return render_template("last.html", title="Letzte 5 Scans", scans=scans)
 
 @app.route("/all")
 def all_scans():
     scans = get_last_scans(0)
-    return render_template("last.html", scans=scans)
+    return render_template("last.html", title="Alle Scans", scans=scans)
 
 @app.route("/top")
 def top_students():
