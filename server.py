@@ -41,53 +41,89 @@ def add_scan(code: str, scanner_id: str):
             "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
         }
 
-def get_last_scans(number: int = 0):
+def get_last_scans(number: int = 0, failures: bool = False):
     with get_connection() as conn:
         with conn.cursor() as cur:
             base_query = """
                 SELECT s.code, st.firstname, st.lastname, st.class, s.scanner_id, s.timestamp
                 FROM scans s
                 LEFT JOIN students st ON s.code = st.code
-                ORDER BY s.id DESC
             """
+            where_clause = ""
+            if not failures:
+                where_clause = "WHERE st.firstname IS NOT NULL"
+                
+            order_clause = " ORDER BY s.id DESC"
+
+            limit_clause = ""
+            params = ()
+            
             if number > 0:
-                cur.execute(base_query + " LIMIT %s", (number,))
-            else:
-                cur.execute(base_query)
+                limit_clause = " LIMIT %s"
+                params = (number,)
+                
+            full_query = base_query + " " + where_clause + order_clause + limit_clause 
+            cur.execute(full_query, params)
 
             return cur.fetchall()
 
-def get_top_students(number: int = 1):
+def get_top_students(number: int = 1, failures: bool = False):
     with get_connection() as conn:
         with conn.cursor() as cur:
             base_query = ("""
                 SELECT s.code, st.firstname, st.lastname, st.class, COUNT(*) AS cnt
                 FROM scans s
                 LEFT JOIN students st ON s.code = st.code
+            """)
+            
+            where_clause = ""
+            if not failures:
+                where_clause = "WHERE st.firstname IS NOT NULL"
+            
+            group_order_clause = ("""
                 GROUP BY s.code, st.firstname, st.lastname, st.class
                 ORDER BY cnt DESC
             """)
+            
+            limit_clause = ""
+            params = ()
+            
             if number > 0:
-                cur.execute(base_query + " LIMIT %s", (number,))
-            else:
-                cur.execute(base_query)
+                limit_clause = " LIMIT %s"
+                params = (number,)
+            
+            full_query = base_query + " " + where_clause + " " + group_order_clause + limit_clause
+            cur.execute(full_query, params)
                 
             return cur.fetchall()
 
-def get_top_classes(number: int = 1):
+def get_top_classes(number: int = 1, failures: bool = False):
     with get_connection() as conn:
         with conn.cursor() as cur:
             base_query = ("""
                 SELECT st.class, COUNT(*) AS cnt
                 FROM scans s
                 LEFT JOIN students st ON s.code = st.code
+            """)
+            
+            where_clause = ""
+            if not failures:
+                where_clause = "WHERE st.class IS NOT NULL"
+            
+            group_order_clause = ("""
                 GROUP BY st.class
                 ORDER BY cnt DESC
             """)
+            
+            limit_clause = ""
+            params = ()
+            
             if number > 0:
-                cur.execute(base_query + " LIMIT %s", (number,))
-            else:
-                cur.execute(base_query)
+                limit_clause = " LIMIT %s"
+                params = (number,)
+            
+            full_query = base_query + " " + where_clause + " " + group_order_clause + limit_clause
+            cur.execute(full_query, params)
                 
             return cur.fetchall()
 
@@ -142,25 +178,31 @@ def notify_clients():
 
 @app.route("/last")
 def last_scans():
-    scans = get_last_scans(5)
-    return render_template("last.html", title="Letzte 5 Scans", scans=scans)
+    limit = request.args.get("limit", default=5, type=int)
+    failures = request.args.get("failures", default=False, type=bool)
+    scans = get_last_scans(limit, failures=failures)
+    return render_template("last.html", title=f"Letzte {limit} Scans", scans=scans)
 
 @app.route("/all")
 def all_scans():
-    scans = get_last_scans(0)
+    limit = request.args.get("limit", default=0, type=int)
+    failures = request.args.get("failures", default=False, type=bool)
+    scans = get_last_scans(limit, failures=failures)
     return render_template("last.html", title="Alle Scans", scans=scans)
 
 @app.route("/top-students")
 def top_students():
-    top_number  = 5
-    students = get_top_students(top_number)
-    return render_template("top-students.html", title=f"Top {top_number} Schüler*innnen", data=students)
+    limit = request.args.get("limit", default=5, type=int)
+    failures = request.args.get("failures", default=False, type=bool)
+    students = get_top_students(limit, failures=failures)
+    return render_template("top-students.html", title=f"Top {limit} Schüler*innnen", data=students)
 
 @app.route("/top-classes")
 def top_classes():
-    top_number  = 10
-    classes = get_top_classes(top_number)
-    return render_template("top-classes.html", title=f"Top {top_number} Klassen", data=classes)
+    limit = request.args.get("limit", default=10, type=int)
+    failures = request.args.get("failures", default=False, type=bool)
+    classes = get_top_classes(limit, failures=failures)
+    return render_template("top-classes.html", title=f"Top {limit} Klassen", data=classes)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8080, debug=False)
