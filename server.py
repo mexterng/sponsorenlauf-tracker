@@ -1,4 +1,11 @@
-from flask import Flask, request, render_template, Response, stream_with_context, jsonify
+from flask import (
+    Flask,
+    request,
+    render_template,
+    Response,
+    stream_with_context,
+    jsonify,
+)
 import psycopg2, queue, time
 
 app = Flask(__name__)
@@ -18,7 +25,7 @@ def get_connection():
 
 
 def query_database(query: str, params: tuple = ()):
-     # Execute a query and return all rows
+    # Execute a query and return all rows
     with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(query, params)
@@ -26,32 +33,67 @@ def query_database(query: str, params: tuple = ()):
 
 
 def add_scan(code: str, scanner_id: str):
-    # Insert new scan and return student data if available
+    def insert_scan():
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                # Insert new scan
+                cur.execute(
+                    "INSERT INTO scans (code, scanner_id) VALUES (%s, %s)",
+                    (code, scanner_id),
+                )
+            conn.commit()
+        notify_clients()
+    
     with get_connection() as conn:
         with conn.cursor() as cur:
-            cur.execute(
-                "INSERT INTO scans (code, scanner_id) VALUES (%s, %s)",
-                (code, scanner_id),
-            )
+            # Try to get student info
             cur.execute(
                 "SELECT firstname, lastname, class FROM students WHERE code = %s",
                 (code,),
             )
 
-            result = cur.fetchone()
+            student_data = cur.fetchone()
         conn.commit()
-    notify_clients()
 
-    if result:
-        firstname, lastname, class_ = result
-        return {
+    if student_data:
+        firstname, lastname, class_ = student_data
+        response = {
             "code": code,
             "firstname": firstname,
             "lastname": lastname,
             "class": class_,
             "scanner_id": scanner_id,
-            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
         }
+        # Check for recent scan to enforce cooldown
+        cooldown_query = """
+            SELECT 1 FROM scans
+            WHERE code = %s AND timestamp >= NOW() - INTERVAL '120 seconds'
+            LIMIT 1
+        """
+        if query_database(cooldown_query, (code,)):
+            # Cooldown active, scan ignored
+            response.update({
+                "status": "Cooldown",
+                "status_code": 429,
+            })
+        else:
+            insert_scan()
+            response.update({
+                "status": "OK",
+                "status_code": 200,
+            })
+    else:
+        insert_scan()
+        response = {
+            "code": code,
+            "scanner_id": scanner_id,
+            "status": "Not Found",
+            "status_code": 404,
+        }
+        
+    response["timestamp"] = time.strftime("%Y-%m-%d %H:%M:%S")
+
+    return response
 
 
 def get_last_scans(number: int = 0, failures: bool = False):
@@ -80,7 +122,7 @@ def get_last_scans(number: int = 0, failures: bool = False):
 
 
 def get_top_students(number: int = 1, failures: bool = False):
-     # Return most scanned students
+    # Return most scanned students
     base_query = """
         SELECT s.code, st.firstname, st.lastname, st.class, COUNT(*) AS cnt
         FROM scans s
@@ -132,13 +174,8 @@ def get_top_classes(number: int = 1, failures: bool = False):
         limit_clause = " LIMIT %s"
         params = (number,)
 
-    full_query = (
-        base_query
-        + where_clause
-        + group_order_clause
-        + limit_clause
-    )
-    
+    full_query = base_query + where_clause + group_order_clause + limit_clause
+
     return query_database(full_query, params)
 
 
@@ -148,20 +185,14 @@ def scan_client():
     start_time = time.time()
     code = request.form.get("code", "").strip()
     scanner_id = request.form.get("scanner_id", "").strip()
-    
+
     if not code or not scanner_id:
-        return jsonify({"status": "Bad Request"}), 400
+        return jsonify({"status": "Bad Request", "status_code": 400}), 400
 
     response_dict = add_scan(code, scanner_id)
-    if response_dict:
-        response_dict["status"] = "OK"
-        status_code = 200
-    else:
-        response_dict = {"code": code, "scanner_id": scanner_id, "status": "Not Found"}
-        status_code = 404
 
     print(f"scan time: {time.time() - start_time}")
-    return jsonify(response_dict), status_code
+    return jsonify(response_dict), response_dict["status_code"]
 
 
 @app.route("/scan", methods=["GET"])
