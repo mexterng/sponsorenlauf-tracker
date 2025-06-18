@@ -407,3 +407,5 @@ FodyWeavers.xsd
 
 
 data/
+.vscode/
+.venv/
