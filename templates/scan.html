@@ -1,37 +1,48 @@
 <!DOCTYPE html>
-<html>
+<html lang="de">
 
 <head>
     <meta charset="utf-8" />
     <title>Scan</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
-    <style>
-        .message {
-            padding: 5px;
-            font-weight: bold;
-            color: green;
-        }
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='scan.css') }}">
+</head>
 
-        .error {
-            padding: 5px;
-            font-weight: bold;
-            color: red;
-        }
+<body>
+    {% include "navbar_back.html" %}
+    
+    <div class="container py-4 d-flex justify-content-center">
+        <div style="width: 100%; max-width: 400px;">
+            <h2 class="mb-4 text-center">Scan</h2>
 
-        .cooldown {
-            padding: 5px;
-            font-weight: bold;
-            color: orange;
-        }
-    </style>
+            <form id="scanForm">
+                <div class="mb-3">
+                    <label for="scanner_id" class="form-label">Scanner-Name</label>
+                    <input type="text" class="form-control" id="scanner_id" name="scanner_id" required>
+                </div>
+
+                <div class="mb-3">
+                    <label for="code" class="form-label">Code</label>
+                    <input type="text" class="form-control" id="code" name="code" required autofocus>
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100">Senden</button>
+            </form>
+
+            <div id="messageContainer" class="mt-3"></div>
+        </div>
+    </div>
+
     <script>
         window.onload = function () {
             const scannerInput = document.getElementById("scanner_id");
             const codeInput = document.getElementById("code");
             const form = document.getElementById("scanForm");
-            const message = document.getElementById("message");
+            const messageContainer = document.getElementById("messageContainer");
 
-            // Lade gespeicherten Scannername
             const savedScanner = localStorage.getItem("scanner_id");
             if (savedScanner) scannerInput.value = savedScanner;
 
@@ -49,85 +60,47 @@
                 fetch("/scan-client", {
                     method: "POST",
                     headers: { "Content-Type": "application/x-www-form-urlencoded" },
-                    body: `code=${encodeURIComponent(
-                        code
-                    )}&scanner_id=${encodeURIComponent(scanner)}`,
+                    body: `code=${encodeURIComponent(code)}&scanner_id=${encodeURIComponent(scanner)}`,
                 })
-                    .then((response) => {
+                    .then(response => {
                         if (!response.ok) {
-                            return response.json().then((errorData) => {
+                            return response.json().then(errorData => {
                                 throw { status: response.status, data: errorData };
                             });
                         }
                         return response.json();
                     })
-                    .then((data) => {
-                        // Neue Meldung oben hinzufügen
+                    .then(data => {
                         const msgDiv = document.createElement("div");
                         msgDiv.className = "message";
                         msgDiv.textContent = `Scan erfasst: ${data.firstname || "?"} ${data.lastname || ""
                             } ${data.class || "?"} (${data.code || ""})`;
                         messageContainer.prepend(msgDiv);
-
-                        // Nach 10 Sekunden Meldung entfernen
                         setTimeout(() => msgDiv.remove(), 10000);
-
                         codeInput.value = "";
                         codeInput.focus();
                     })
-                    .catch((error) => {
-                        console.log(error.status);
+                    .catch(error => {
+                        const msgDiv = document.createElement("div");
                         if (error.status === 404) {
-                            // Neue Meldung oben hinzufügen
-                            const msgDiv = document.createElement("div");
                             msgDiv.className = "error";
-                            msgDiv.textContent = `Scan fehlgeschlagen: Code ${error.data.code || ""
-                                } nicht gefunden!`;
-                            messageContainer.prepend(msgDiv);
-
-                            // Nach 10 Sekunden Meldung entfernen
-                            setTimeout(() => msgDiv.remove(), 10000);
-
-                            codeInput.value = "";
-                            codeInput.focus();
+                            msgDiv.textContent = `Scan fehlgeschlagen: Code ${error.data.code || ""} nicht gefunden!`;
                         } else if (error.status === 429) {
-                            // Neue Meldung oben hinzufügen
-                            const msgDiv = document.createElement("div");
                             msgDiv.className = "cooldown";
-                            msgDiv.textContent = `Scan fehlgeschlagen: Letzter Scan von ${error.data.firstname || "?"
-                                } ${error.data.lastname || ""} ${error.data.class || "?"} (${error.data.code || ""
-                                }) ist noch keine 120 Sekunden her!`;
-                            messageContainer.prepend(msgDiv);
-
-                            // Nach 10 Sekunden Meldung entfernen
-                            setTimeout(() => msgDiv.remove(), 10000);
-
-                            codeInput.value = "";
-                            codeInput.focus();
+                            msgDiv.textContent = `Scan fehlgeschlagen: Letzter Scan von ${error.data.firstname || "?"} ${error.data.lastname || ""} ${error.data.class || "?"} (${error.data.code || ""}) ist noch keine 120 Sekunden her!`;
                         } else {
                             alert("Verbindungsfehler oder Serverproblem");
                             console.error(error);
+                            return;
                         }
+                        messageContainer.prepend(msgDiv);
+                        setTimeout(() => msgDiv.remove(), 10000);
+                        codeInput.value = "";
+                        codeInput.focus();
                     });
             });
         };
     </script>
-</head>
-
-<body>
-    {% include "navbar_back.html" %}
-    <h2>Scan</h2>
-    <form id="scanForm">
-        <label for="scanner_id">Scanner-Name:</label>
-        <input type="text" id="scanner_id" name="scanner_id" required /><br /><br />
-
-        <label for="code">Code:</label>
-        <input type="text" id="code" name="code" required autofocus /><br /><br />
-
-        <button type="submit">Senden</button>
-    </form>
-
-    <div id="messageContainer"></div>
 </body>
 
 </html>
