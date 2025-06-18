@@ -1,0 +1,17 @@
+<!-- templates/navbar_front.html -->
+<nav class="navbar navbar-dark bg-dark fixed-top">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="/">Spendenlauf <span id="year"></span></a>
+        <ul class="navbar-nav d-flex flex-row gap-3 flex-wrap flex-md-nowrap">
+            <li class="nav-item">
+                <a class="nav-link text-white" href="/top-classes">Klassen</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link text-white" href="/top-students">Schüler</a>
+            </li>
+        </ul>
+    </div>
+</nav>
+<script>
+    document.getElementById("year").textContent = new Date().getFullYear();
+</script>
