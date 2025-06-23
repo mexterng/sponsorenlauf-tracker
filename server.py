@@ -96,7 +96,7 @@ def add_scan(code: str, scanner_id: str):
     return response
 
 
-def get_last_scans(number: int = 0, failures: bool = False):
+def get_last_scans(limit: int = 0, failures: bool = False):
     # Return recent scans with or without failed lookups
     base_query = """
         SELECT s.code, st.firstname, st.lastname, st.class, s.scanner_id, s.timestamp
@@ -112,16 +112,26 @@ def get_last_scans(number: int = 0, failures: bool = False):
     limit_clause = ""
     params = ()
 
-    if number > 0:
+    if limit > 0:
         limit_clause = " LIMIT %s"
-        params = (number,)
+        params = (limit,)
 
     full_query = base_query + where_clause + order_clause + limit_clause
 
     return query_database(full_query, params)
 
 
-def get_top_students(number: int = 1, failures: bool = False):
+def limit_filter(limit: int):
+    pass
+
+def failures_filter(failures: bool):
+    pass
+
+def grade_levels_filter(grade_levels = []):
+    pass
+
+
+def get_top_students(limit: int = 1, failures: bool = False, grade_levels = []):
     # Return most scanned students
     base_query = """
         SELECT s.code, st.firstname, st.lastname, st.class, COUNT(*) AS cnt
@@ -129,9 +139,21 @@ def get_top_students(number: int = 1, failures: bool = False):
         LEFT JOIN students st ON s.code = st.code
     """
 
-    where_clause = ""
+    where_clauses = []
+    params = []
     if not failures:
-        where_clause = " WHERE st.firstname IS NOT NULL"
+        where_clauses.append("st.firstname IS NOT NULL")
+    
+    if grade_levels:
+        like_clauses = []
+        for level in grade_levels:
+            like_clauses.append("st.class LIKE %s")
+            params.append(f"{level}%")  # e. g. "5%" for classes like 5a, 5b etc.
+        where_clauses.append("(" + " OR ".join(like_clauses) + ")")
+
+    where_clause = ""
+    if where_clauses:
+        where_clause = " WHERE " + " AND ".join(where_clauses)
 
     group_order_clause = """ 
         GROUP BY s.code, st.firstname, st.lastname, st.class
@@ -139,18 +161,17 @@ def get_top_students(number: int = 1, failures: bool = False):
     """
 
     limit_clause = ""
-    params = ()
 
-    if number > 0:
+    if limit > 0:
         limit_clause = " LIMIT %s"
-        params = (number,)
+        params.append(limit)
 
     full_query = base_query + where_clause + group_order_clause + limit_clause
 
-    return query_database(full_query, params)
+    return query_database(full_query, tuple(params))
 
 
-def get_top_classes(number: int = 1, failures: bool = False):
+def get_top_classes(number: int = 1, failures: bool = False, grade_levels = []):
     # Return classes with most scans
     base_query = """ 
         SELECT st.class, COUNT(*) AS cnt
@@ -158,9 +179,21 @@ def get_top_classes(number: int = 1, failures: bool = False):
         LEFT JOIN students st ON s.code = st.code
     """
 
-    where_clause = ""
+    where_clauses = []
+    params = []
     if not failures:
-        where_clause = " WHERE st.class IS NOT NULL"
+        where_clauses.append("st.class IS NOT NULL")
+        
+    if grade_levels:
+        like_clauses = []
+        for level in grade_levels:
+            like_clauses.append("st.class LIKE %s")
+            params.append(f"{level}%")  # e. g. "5%" for classes like 5a, 5b etc.
+        where_clauses.append("(" + " OR ".join(like_clauses) + ")")
+
+    where_clause = ""
+    if where_clauses:
+        where_clause = " WHERE " + " AND ".join(where_clauses)
 
     group_order_clause = """ 
         GROUP BY st.class
@@ -168,15 +201,14 @@ def get_top_classes(number: int = 1, failures: bool = False):
     """
 
     limit_clause = ""
-    params = ()
 
     if number > 0:
         limit_clause = " LIMIT %s"
-        params = (number,)
+        params.append(number)
 
     full_query = base_query + where_clause + group_order_clause + limit_clause
 
-    return query_database(full_query, params)
+    return query_database(full_query, tuple(params))
 
 
 @app.route("/scan-client", methods=["POST"])
@@ -245,15 +277,29 @@ def all_scans():
     return render_template("last.html", title="Alle Scans", scans=scans)
 
 
+# helper for parse grade levels
+def parse_grade_levels(param: str) -> list[int]:
+    result = []
+    if not param:
+        return result
+    for part in param.split(','):
+        if '-' in part:
+            start, end = part.split('-')
+            result.extend(range(int(start), int(end) + 1))
+        else:
+            result.append(int(part))
+    return sorted(set(result))
+
+
 @app.route("/top-students", methods=["GET"])
-def top_students():
+def top_students():    
     # Render page for top scanned students
     limit = request.args.get("limit", default=5, type=int)
     failures = request.args.get("failures", default=False, type=bool)
-    students = get_top_students(limit, failures=failures)
-    return render_template(
-        "top-students.html", title=f"Top {limit} Schüler*innnen", data=students
-    )
+    grade_levels = request.args.get("grade-levels", default="", type=str)
+    grade_levels = parse_grade_levels(grade_levels)
+    students = get_top_students(limit, failures=failures, grade_levels=grade_levels)
+    return render_template("top-students.html", title=f"Top {limit} Schüler*innnen", data=students)
 
 
 @app.route("/top-classes", methods=["GET"])
@@ -261,10 +307,10 @@ def top_classes():
     # Render page for top scanned classes
     limit = request.args.get("limit", default=10, type=int)
     failures = request.args.get("failures", default=False, type=bool)
-    classes = get_top_classes(limit, failures=failures)
-    return render_template(
-        "top-classes.html", title=f"Top {limit} Klassen", data=classes
-    )
+    grade_levels = request.args.get("grade-levels", default="", type=str)
+    grade_levels = parse_grade_levels(grade_levels)
+    classes = get_top_classes(limit, failures=failures, grade_levels=grade_levels)
+    return render_template("top-classes.html", title=f"Top {limit} Klassen", data=classes)
 
 
 if __name__ == "__main__":
