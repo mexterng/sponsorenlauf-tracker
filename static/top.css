@@ -14,6 +14,26 @@
     padding: 1rem;
     text-align: center;
     margin-bottom: 1rem;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+}
+
+.leaderboard-header h2 {
+    margin: 0;
+    flex: 1;
+    text-align: center;
+}
+
+.leaderboard-header svg.gear-icon {
+    position: absolute;
+    right: 1rem;
+    width: 17px;
+    height: 17px;
+    cursor: pointer;
+    fill: white;
 }
 
 .bar-container {
@@ -31,4 +51,55 @@
     color: white;
     font-weight: bold;
     white-space: nowrap;
+}
+
+.settings-popup {
+    position: absolute;
+    top: 100%;
+    right: 0rem;
+    margin-top: 0.5rem;
+    background: white;
+    border-radius: 0.5rem;
+    box-shadow: 0 0.25rem 0.5rem rgba(0,0,0,0.2);
+    padding: 1rem;
+    width: auto;
+    color: black;
+    z-index: 10;
+    border: 1px solid black;
+}
+
+.settings-popup label {
+    display: block;
+    margin-bottom: 0.75rem;
+    font-size: 0.9rem;
+}
+
+.settings-popup input[type="text"],
+.settings-popup input[type="number"] {
+    width: 100%;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.9rem;
+    margin-top: 0.25rem;
+    box-sizing: border-box;
+}
+
+.settings-popup button {
+    display: block;
+    width: 100%;
+    padding: 0.5rem;
+    font-size: 1rem;
+    background-color: #0d6efd;
+    color: white;
+    border: none;
+    border-radius: 0.25rem;
+    cursor: pointer;
+}
+
+.button-group {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.settings-popup.hidden {
+    display: none;
 }

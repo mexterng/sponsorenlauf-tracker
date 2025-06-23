@@ -1,0 +1,85 @@
+<div id="settings-popup" class="settings-popup hidden">
+    <form id="settings-form">
+        <label>
+            <input type="checkbox" id="failures-checkbox" name="failures">
+            Fehlerhafte Scans anzeigen
+        </label>
+        <label>
+            Klassenstufen (z.B. 5,6,8-10):<br>
+            <input type="text" id="grade-levels-input" name="grade_levels" placeholder="z.B. 5,6,8-10">
+        </label>
+        <label>
+            Maximale Einträge:<br>
+            <input type="number" id="limit-input" name="limit" min="1" placeholder="">
+        </label>
+        <div class="button-group">
+            <button type="submit">Anwenden</button>
+            <button type="button" id="reset-button">Zurücksetzen</button>
+        </div>
+    </form>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    const icon = document.getElementById("settings-icon");
+    const popup = document.getElementById("settings-popup");
+    const form = document.getElementById("settings-form");
+
+    const urlParams = new URLSearchParams(window.location.search);
+
+    form.failures.checked = urlParams.get("failures") === "true";
+    form.grade_levels.value = urlParams.get("grade-level") || "";
+    form.limit.value = urlParams.get("limit") || "";
+
+    icon.addEventListener("click", (e) => {
+        e.stopPropagation();
+        popup.classList.toggle("hidden");
+    });
+
+    document.addEventListener("click", () => {
+        popup.classList.add("hidden");
+    });
+
+    popup.addEventListener("click", (e) => {
+        e.stopPropagation();
+    });
+
+    form.addEventListener("submit", (e) => {
+        e.preventDefault();
+
+        const failures = form.failures.checked;
+        const gradeLevels = form.grade_levels.value.trim();
+        const limit = form.limit.value.trim();
+
+        const url = new URL(window.location);
+
+        if (failures) {
+            url.searchParams.set("failures", "true");
+        } else {
+            url.searchParams.delete("failures");
+        }
+
+        if (gradeLevels) {
+            url.searchParams.set("grade-level", gradeLevels);
+        } else {
+            url.searchParams.delete("grade-level");
+        }
+
+        if (limit) {
+            url.searchParams.set("limit", limit);
+        } else {
+            url.searchParams.delete("limit");
+        }
+
+        window.location.href = url.toString();
+    });
+});
+
+const resetButton = document.getElementById("reset-button");
+
+resetButton.addEventListener("click", () => {
+    const url = new URL(window.location);
+    url.search = "";
+    window.location.href = url.toString();
+});
+</script>
