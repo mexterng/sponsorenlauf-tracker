@@ -28,7 +28,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const urlParams = new URLSearchParams(window.location.search);
 
     form.failures.checked = urlParams.get("failures") === "true";
-    form.grade_levels.value = urlParams.get("grade-level") || "";
+    form.grade_levels.value = urlParams.get("grade-levels") || "";
     form.limit.value = urlParams.get("limit") || "";
 
     icon.addEventListener("click", (e) => {
@@ -60,9 +60,9 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         if (gradeLevels) {
-            url.searchParams.set("grade-level", gradeLevels);
+            url.searchParams.set("grade-levels", gradeLevels);
         } else {
-            url.searchParams.delete("grade-level");
+            url.searchParams.delete("grade-levels");
         }
 
         if (limit) {
